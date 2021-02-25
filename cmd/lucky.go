@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"crypto/rand"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -24,35 +25,45 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// lotoCmd represents the loto command
-var lotoCmd = &cobra.Command{
-	Use:   "loto",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+// luckyCmd represents the lucky command
+var luckyCmd = &cobra.Command{
+	Use:   "lucky",
+	Short: "Lucky",
+	Long:  `Lucky number`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cart := make(map[int64]interface{}, 0)
+		pool := make(map[int64]interface{}, 0)
+		arr := make([]int64, maxNumberFlag)
+		ticket := make([]string, 0)
+		var idx int64 = 0
+		for ; idx < maxNumberFlag; {
+			numTmp, err := rand.Int(rand.Reader, big.NewInt(maxNumberFlag))
+			if err != nil {
+				log.Fatal().Err(err).Send()
+			}
+			num := numTmp.Int64() + 1
+			_, ok := pool[num]
+			if !ok {
+				pool[num] = true
+				arr[idx] = num
+				idx++
+			}
+		}
 
 		for len(cart) < 6 {
 			numTmp, err := rand.Int(rand.Reader, big.NewInt(maxNumberFlag))
 			if err != nil {
 				log.Fatal().Err(err).Send()
 			}
-			num := numTmp.Int64() + 1
+			num := numTmp.Int64()
 			_, ok := cart[num]
 			if !ok {
 				cart[num] = true
 			}
 			time.Sleep(time.Duration(num*10) * time.Millisecond)
 		}
-
-		ticket := make([]int64, 0)
 		for k, _ := range cart {
-			ticket = append(ticket, k)
+			ticket = append(ticket, fmt.Sprintf("%02d", arr[k]))
 		}
 
 		log.Info().Interface("ticket", ticket).Msg("Good luck! =))")
@@ -62,7 +73,7 @@ to quickly create a Cobra application.`,
 var maxNumberFlag int64
 
 func init() {
-	rootCmd.AddCommand(lotoCmd)
+	rootCmd.AddCommand(luckyCmd)
 
-	lotoCmd.Flags().Int64VarP(&maxNumberFlag, "max", "m",55, "")
+	luckyCmd.Flags().Int64VarP(&maxNumberFlag, "max", "m", 55, "")
 }

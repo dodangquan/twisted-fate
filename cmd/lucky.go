@@ -32,21 +32,26 @@ var luckyCmd = &cobra.Command{
 	Long:  `Lucky number`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cart := make(map[int64]interface{}, 0)
-		pool := make(map[int64]interface{}, 0)
 		arr := make([]int64, maxNumberFlag)
 		ticket := make([]string, 0)
 		var idx int64 = 0
-		for ; idx < maxNumberFlag; {
-			numTmp, err := rand.Int(rand.Reader, big.NewInt(maxNumberFlag))
-			if err != nil {
-				log.Fatal().Err(err).Send()
-			}
-			num := numTmp.Int64() + 1
-			_, ok := pool[num]
-			if !ok {
-				pool[num] = true
-				arr[idx] = num
-				idx++
+
+		for i := 0; i < 6; i++ {
+			pool := make(map[int64]interface{}, 0)
+			idx = 0
+			for ; idx < maxNumberFlag; {
+				numTmp, err := rand.Int(rand.Reader, big.NewInt(maxNumberFlag))
+				if err != nil {
+					log.Fatal().Err(err).Send()
+				}
+				num := numTmp.Int64() + 1
+				time.Sleep(time.Duration(num*20) * time.Millisecond)
+				_, ok := pool[num]
+				if !ok {
+					pool[num] = true
+					arr[idx] = num
+					idx++
+				}
 			}
 		}
 
@@ -59,8 +64,8 @@ var luckyCmd = &cobra.Command{
 			_, ok := cart[num]
 			if !ok {
 				cart[num] = true
+				time.Sleep(time.Duration(num*50) * time.Millisecond)
 			}
-			time.Sleep(time.Duration(num*10) * time.Millisecond)
 		}
 		for k, _ := range cart {
 			ticket = append(ticket, fmt.Sprintf("%02d", arr[k]))

@@ -21,6 +21,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/pterm/pterm"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -36,6 +37,17 @@ var luckyCmd = &cobra.Command{
 		ticket := make([]string, 0)
 		var idx int64 = 0
 
+		luckySpinner, err := pterm.DefaultSpinner.WithMessageStyle(pterm.NewStyle(pterm.FgDefault)).Start("Finding lucky number...")
+		if err != nil {
+			log.Fatal().Err(err).Send()
+		}
+		defer func() {
+			e := luckySpinner.Stop()
+			if e != nil {
+				log.Fatal().Err(e).Send()
+			}
+		}()
+
 		for i := 0; i < 6; i++ {
 			pool := make(map[int64]interface{}, 0)
 			idx = 0
@@ -45,9 +57,9 @@ var luckyCmd = &cobra.Command{
 					log.Fatal().Err(err).Send()
 				}
 				num := numTmp.Int64() + 1
-				time.Sleep(time.Duration(num*20) * time.Millisecond)
 				_, ok := pool[num]
 				if !ok {
+					time.Sleep(time.Duration(num*20) * time.Millisecond)
 					pool[num] = true
 					arr[idx] = num
 					idx++
@@ -64,14 +76,16 @@ var luckyCmd = &cobra.Command{
 			_, ok := cart[num]
 			if !ok {
 				cart[num] = true
+				luckySpinner.Success(fmt.Sprintf("Number#%d: %02d", len(cart), arr[num]))
 				time.Sleep(time.Duration(num*50) * time.Millisecond)
 			}
 		}
-		for k, _ := range cart {
+		for k := range cart {
 			ticket = append(ticket, fmt.Sprintf("%02d", arr[k]))
 		}
 
 		log.Info().Interface("ticket", ticket).Msg("Good luck! =))")
+		luckySpinner.Success("Finish")
 	},
 }
 

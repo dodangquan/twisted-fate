@@ -1,4 +1,5 @@
 /*
+Package cmd
 Copyright © 2021 Đỗ Đăng Quân <dodangquan@outlook.com>
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,10 +18,12 @@ package cmd
 
 import (
 	"crypto/rand"
+	//mRand "math/rand"
 	"fmt"
 	"math/big"
-	"time"
+	"sort"
 
+	"github.com/dodangquan/twisted-fate/lucky"
 	"github.com/pterm/pterm"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -32,12 +35,13 @@ var luckyCmd = &cobra.Command{
 	Short: "Lucky",
 	Long:  `Lucky number`,
 	Run: func(cmd *cobra.Command, args []string) {
-		cart := make(map[int64]interface{}, 0)
+		numberOfRotations := 6
 		arr := make([]int64, maxNumberFlag)
-		ticket := make([]string, 0)
-		var idx int64 = 0
+		luckyNumbers := make([]string, 0)
 
-		luckySpinner, err := pterm.DefaultSpinner.WithMessageStyle(pterm.NewStyle(pterm.FgDefault)).Start("Finding lucky number...")
+		luckySpinner, err := pterm.DefaultSpinner.
+			WithMessageStyle(pterm.NewStyle(pterm.FgDefault)).
+			Start("Finding lucky number...")
 		if err != nil {
 			log.Fatal().Err(err).Send()
 		}
@@ -48,18 +52,18 @@ var luckyCmd = &cobra.Command{
 			}
 		}()
 
-		for i := 0; i < 6; i++ {
+		var idx int64 = 0
+		for i := 0; i < numberOfRotations; i++ {
 			pool := make(map[int64]interface{}, 0)
 			idx = 0
 			for ; idx < maxNumberFlag; {
-				numTmp, err := rand.Int(rand.Reader, big.NewInt(maxNumberFlag))
+				randomize, err := rand.Int(rand.Reader, big.NewInt(maxNumberFlag))
 				if err != nil {
 					log.Fatal().Err(err).Send()
 				}
-				num := numTmp.Int64() + 1
+				num := randomize.Int64() + 1
 				_, ok := pool[num]
 				if !ok {
-					time.Sleep(time.Duration(num*20) * time.Millisecond)
 					pool[num] = true
 					arr[idx] = num
 					idx++
@@ -67,24 +71,21 @@ var luckyCmd = &cobra.Command{
 			}
 		}
 
-		for len(cart) < 6 {
-			numTmp, err := rand.Int(rand.Reader, big.NewInt(maxNumberFlag))
-			if err != nil {
-				log.Fatal().Err(err).Send()
-			}
-			num := numTmp.Int64()
-			_, ok := cart[num]
-			if !ok {
-				cart[num] = true
-				luckySpinner.Success(fmt.Sprintf("Number#%d: %02d", len(cart), arr[num]))
-				time.Sleep(time.Duration(num*50) * time.Millisecond)
-			}
-		}
-		for k := range cart {
-			ticket = append(ticket, fmt.Sprintf("%02d", arr[k]))
+		var t lucky.NumberHeap
+		for i := range arr {
+			t = append(t, lucky.NewNumber(arr[i]))
 		}
 
-		log.Info().Interface("ticket", ticket).Msg("Good luck! =))")
+		sort.Sort(t)
+
+		for i := 0; i < numberOfRotations; i++ {
+			luckyNumbers = append(luckyNumbers, fmt.Sprintf("%02d", t[i].Value))
+			luckySpinner.Success(fmt.Sprintf("Number#%d: %02d", i+1, t[i].Value))
+		}
+
+		sort.Strings(luckyNumbers)
+
+		log.Info().Interface("LuckyNumbers", luckyNumbers).Msg("Good luck! =))")
 		luckySpinner.Success("Finish")
 	},
 }

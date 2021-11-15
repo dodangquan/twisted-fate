@@ -17,11 +17,12 @@ limitations under the License.
 package cmd
 
 import (
+	"container/heap"
 	"crypto/rand"
-	//mRand "math/rand"
 	"fmt"
 	"math/big"
 	"sort"
+	"time"
 
 	"github.com/dodangquan/twisted-fate/lucky"
 	"github.com/pterm/pterm"
@@ -71,16 +72,31 @@ var luckyCmd = &cobra.Command{
 			}
 		}
 
-		var t lucky.NumberHeap
-		for i := range arr {
-			t = append(t, lucky.NewNumber(arr[i]))
-		}
-
-		sort.Sort(t)
+		h := createHeap(numberOfRotations, arr)
 
 		for i := 0; i < numberOfRotations; i++ {
-			luckyNumbers = append(luckyNumbers, fmt.Sprintf("%02d", t[i].Value))
-			luckySpinner.Success(fmt.Sprintf("Number#%d: %02d", i+1, t[i].Value))
+			arrTemp := make([]int64, len(arr))
+			for j := 0; j < len(arrTemp); j++ {
+				arrTemp[j] = h.Pop().(*lucky.Number).Value
+			}
+
+			h = createHeap(numberOfRotations, arrTemp)
+		}
+
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+
+		for i := 0; i < numberOfRotations; i++ {
+			index, err := rand.Int(rand.Reader, big.NewInt(int64(h.Len())))
+			if err != nil {
+				log.Fatal().Err(err).Send()
+			}
+
+			<- ticker.C
+			num := heap.Remove(&h, int(index.Int64())).(*lucky.Number)
+
+			luckyNumbers = append(luckyNumbers, fmt.Sprintf("%02d", num.Value))
+			luckySpinner.Success(fmt.Sprintf("Number#%d: %02d", i+1, num.Value))
 		}
 
 		sort.Strings(luckyNumbers)
@@ -88,6 +104,20 @@ var luckyCmd = &cobra.Command{
 		log.Info().Interface("LuckyNumbers", luckyNumbers).Msg("Good luck! =))")
 		luckySpinner.Success("Finish")
 	},
+}
+
+func createHeap(numberOfRotations int, arr []int64) lucky.NumberHeap {
+	h := make(lucky.NumberHeap, numberOfRotations)
+	for i := 0; i < numberOfRotations; i++ {
+		h[i] = lucky.NewNumber(arr[i])
+	}
+
+	heap.Init(&h)
+	for i := numberOfRotations; i < len(arr); i++ {
+		heap.Push(&h, lucky.NewNumber(arr[i]))
+	}
+
+	return h
 }
 
 var maxNumberFlag int64

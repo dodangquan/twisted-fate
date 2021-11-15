@@ -19,8 +19,6 @@ func NewNumber(value int64) *Number {
 		log.Fatal().Err(err).Int64("value", value).Msg("Cannot create new number")
 	}
 
-	log.Debug().Uint64("priority", priority).Send()
-
 	return &Number{
 		Value:    value,
 		priority: priority,
@@ -49,8 +47,6 @@ func (h NumberHeap) Swap(i, j int) {
 func (h *NumberHeap) Push(x interface{}) {
 	// Push and Pop use pointer receivers because they modify the slice's length, not just its contents.
 	*h = append(*h, x.(*Number))
-	item := x.(*Number)
-	*h = append(*h, item)
 }
 
 func (h *NumberHeap) Pop() interface{} {

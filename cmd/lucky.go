@@ -6,7 +6,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,9 +18,8 @@ package cmd
 
 import (
 	"container/heap"
-	"crypto/rand"
 	"fmt"
-	"math/big"
+	"os"
 	"sort"
 	"time"
 
@@ -28,6 +27,7 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	xrand "golang.org/x/exp/rand"
 )
 
 // luckyCmd represents the lucky command
@@ -39,9 +39,14 @@ var luckyCmd = &cobra.Command{
 		numberOfRotations := 6
 		arr := make([]int64, maxNumberFlag)
 		luckyNumbers := make([]string, 0)
+		lockedSource := &xrand.LockedSource{}
+		lockedSource.Seed(uint64(time.Now().UnixNano()))
+		r := xrand.New(lockedSource)
 
 		luckySpinner, err := pterm.DefaultSpinner.
 			WithMessageStyle(pterm.NewStyle(pterm.FgDefault)).
+			WithRemoveWhenDone(false).
+			WithWriter(os.Stderr).
 			Start("Finding lucky number...")
 		if err != nil {
 			log.Fatal().Err(err).Send()
@@ -57,12 +62,9 @@ var luckyCmd = &cobra.Command{
 		for i := 0; i < numberOfRotations; i++ {
 			pool := make(map[int64]interface{}, 0)
 			idx = 0
-			for ; idx < maxNumberFlag; {
-				randomize, err := rand.Int(rand.Reader, big.NewInt(maxNumberFlag))
-				if err != nil {
-					log.Fatal().Err(err).Send()
-				}
-				num := randomize.Int64() + 1
+			for idx < maxNumberFlag {
+				randomize := r.Int63n(maxNumberFlag)
+				num := randomize + 1
 				_, ok := pool[num]
 				if !ok {
 					pool[num] = true
@@ -74,29 +76,24 @@ var luckyCmd = &cobra.Command{
 
 		h := createHeap(numberOfRotations, arr)
 
+		ticker := time.NewTicker(3 * time.Second)
+		defer ticker.Stop()
+
 		for i := 0; i < numberOfRotations; i++ {
-			arrTemp := make([]int64, len(arr))
+			index := r.Int63n(int64(h.Len()))
+
+			<-ticker.C
+			num := heap.Remove(&h, int(index)).(*lucky.Number)
+
+			luckyNumbers = append(luckyNumbers, fmt.Sprintf("%02d", num.Value))
+			luckySpinner.Success(fmt.Sprintf("Number#%d: %02d", i+1, num.Value))
+
+			arrTemp := make([]int64, h.Len())
 			for j := 0; j < len(arrTemp); j++ {
 				arrTemp[j] = h.Pop().(*lucky.Number).Value
 			}
 
 			h = createHeap(numberOfRotations, arrTemp)
-		}
-
-		ticker := time.NewTicker(2 * time.Second)
-		defer ticker.Stop()
-
-		for i := 0; i < numberOfRotations; i++ {
-			index, err := rand.Int(rand.Reader, big.NewInt(int64(h.Len())))
-			if err != nil {
-				log.Fatal().Err(err).Send()
-			}
-
-			<- ticker.C
-			num := heap.Remove(&h, int(index.Int64())).(*lucky.Number)
-
-			luckyNumbers = append(luckyNumbers, fmt.Sprintf("%02d", num.Value))
-			luckySpinner.Success(fmt.Sprintf("Number#%d: %02d", i+1, num.Value))
 		}
 
 		sort.Strings(luckyNumbers)
